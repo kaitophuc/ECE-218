@@ -1,0 +1,128 @@
+/=====[Libraries]=============================================================
+
+#include "mbed.h"
+#include "arm_book_lib.h"
+
+//=====[Defines]===============================================================
+
+#define NUMBER_OF_KEYS 4
+
+//=====[Declaration and initialization of public global objects]===============
+
+DigitalIn ignition(D6);
+DigitalIn driver_occupancy_sensor(D4);
+DigitalIn driver_seatbelt_sensor(D2);
+DigitalIn passenger_occupancy_sensor(D5);
+DigitalIn passenger_seatbelt_sensor(D3);
+
+DigitalOut alarm_buzzer(PE_10);
+DigitalOut greenLed(LED1);
+DigitalOut blueLed(LED2);
+
+UnbufferedSerial uartUsb(USBTX, USBRX, 115200);
+
+//=====[Declarations (prototypes) of public functions]=========================
+
+void inputsInit();
+void outputsInit();
+
+void check_driver_sit_down();
+void check_both_seat_and_seatbelt();
+void reset_system();
+void process_ignition();
+
+//=====[Main function, the program entry point after power on or reset]========
+bool driverSitting = false;
+bool ignitionProcessed = false;
+
+int main()
+{
+ inputsInit();
+ outputsInit();
+ while (true) {
+ check_driver_sit_down();
+ check_both_seat_and_seatbelt(); 
+ if (!ignitionProcessed) {
+ process_ignition();
+ }
+ }
+}
+
+//=====[Implementations of public functions]===================================
+
+void inputsInit()
+{
+ ignition.mode(PullDown);
+ driver_occupancy_sensor.mode(PullDown);
+ driver_seatbelt_sensor.mode(PullDown);
+ passenger_occupancy_sensor.mode(PullDown);
+ passenger_seatbelt_sensor.mode(PullDown);
+}
+
+void outputsInit()
+{
+ greenLed = OFF;
+ blueLed = OFF;
+ alarm_buzzer = ON;
+}
+
+void check_driver_sit_down() {
+ if(driver_occupancy_sensor && !driverSitting) {
+ uartUsb.write("Welcome to an enhanced alarm system model\r\n", 43);
+ uartUsb.write("\r\n", 2);
+ driverSitting = true;
+ }
+}
+
+void check_both_seat_and_seatbelt() {
+ if(driver_seatbelt_sensor && driver_occupancy_sensor && passenger_seatbelt_sensor && passenger_occupancy_sensor) {
+ greenLed = ON;
+ } else {
+ greenLed = OFF;
+ }
+}
+
+void process_ignition() {
+ if (ignition) {
+ ignitionProcessed = true;
+ 
+ 
+ if (greenLed.read()) {
+ blueLed = ON;
+ greenLed = OFF;
+ uartUsb.write("Engine started\r\n", 16);
+ uartUsb.write("\r\n", 2);
+ }
+ else {
+ alarm_buzzer = OFF; 
+ uartUsb.write("Ignition Inhibited\r\n", 18);
+ uartUsb.write("\r\n", 2);
+ uartUsb.write("\r\n", 2);
+ 
+ if (driver_occupancy_sensor == OFF) {
+ uartUsb.write("Driver Seat Not Occupied\r\n", 25);
+ uartUsb.write("\r\n", 2);
+ }
+ if (passenger_occupancy_sensor == OFF) {
+ uartUsb.write("Passenger Seat Not Occupied\r\n", 28);
+ uartUsb.write("\r\n", 2);
+ }
+ if (driver_seatbelt_sensor == OFF) {
+ uartUsb.write("Driver Seatbelt Not Fastened\r\n", 29);
+ uartUsb.write("\r\n", 2);
+ }
+ if (passenger_seatbelt_sensor == OFF) {
+ uartUsb.write("Passenger Seatbelt Not Fastened\r\n", 33);
+ uartUsb.write("\r\n", 2);
+ }
+ } 
+ 
+ }
+ }
+
+void reset_system() {
+ alarm_buzzer = ON;
+ blueLed = OFF;
+ greenLed = OFF;
+ driverSitting = false;
+ ignitionProcessed = false; }
